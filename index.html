@@ -347,7 +347,7 @@ function slab(x,z,R,h,seed){const r=rng32(seed),sh=new THREE.Shape(),N=14;
 const TABLE={x:1,z:14};const TABLE_TOP=slab(TABLE.x,TABLE.z,1.35,.62,61);
 slab(-9,15,.85,.5,62);
 {const r=rng32(71),pts=[];
- for(const [ax,az,bx,bz] of [[-3,25,-.5,18],[2.4,11.5,4.3,4.6]]){const L=Math.hypot(bx-ax,bz-az);for(let s=0;s<=L;s+=1.4)pts.push([lerp(ax,bx,s/L)+(r()-.5)*.6,lerp(az,bz,s/L)+(r()-.5)*.4,.55+r()*.25]);}
+ for(const [ax,az,bx,bz] of [[-3,25,-.5,18],[2.4,11.5,4.3,4.6],[6.5,8,12,3.2],[12,3.2,18,-1.6],[18,-1.6,23.6,-5]]){const L=Math.hypot(bx-ax,bz-az);for(let s=0;s<=L;s+=1.4)pts.push([lerp(ax,bx,s/L)+(r()-.5)*.6,lerp(az,bz,s/L)+(r()-.5)*.4,.55+r()*.25]);}
  for(let i=0;i<40;i++){const x=-14+r()*28,z=4+r()*20;if(pondD(x,z)<1.4||Math.hypot(x-TABLE.x,z-TABLE.z)<2.2||Math.hypot(x+9,z-15)<1.5)continue;pts.push([x,z,.35+r()*.45]);}
  const im=new THREE.InstancedMesh(new THREE.CylinderGeometry(1,1.05,.16,9),new THREE.MeshPhongMaterial({color:0xffffff,map:lavaTex,shininess:3,specular:0x0a0a0a}),pts.length);
  pts.forEach(([x,z,s],i)=>{_e.set(0,r()*6,0);_q.setFromEuler(_e);_m.compose(_v.set(x,heightAt(x,z)+.03,z),_q,_s.set(s*1.25,1,s));im.setMatrixAt(i,_m);
@@ -364,7 +364,8 @@ const TANK={x:4.6,z:-17.6};
 
 // ---------- house with the big hip roof (photo 1, right) ----------
 const house={};
-{const H=4.6,y0=GH-6,wallMat=new THREE.MeshLambertMaterial({color:0xeef0ea}),T=.4,{x0,x1,z0,z1,door}=HOUSE;
+{const siding=canvasTex(64,64,(g)=>{g.fillStyle='#eef0ea';g.fillRect(0,0,64,64);g.fillStyle='#c7cbc2';g.fillRect(0,60,64,4);g.fillStyle='#f7f8f4';g.fillRect(0,0,64,3);},true);siding.repeat.set(2,32);
+ const H=4.6,y0=GH-6,wallMat=new THREE.MeshLambertMaterial({map:siding}),T=.4,{x0,x1,z0,z1,door}=HOUSE;
  const wall=(cx,cz,sx,sz,y=y0,hh=H+6)=>{const m=new THREE.Mesh(new THREE.BoxGeometry(sx,hh,sz),wallMat);m.position.set(cx,y+hh/2,cz);m.castShadow=m.receiveShadow=true;scene.add(m);};
  wall((x0+x1)/2,z0,x1-x0,T);wall((x0+x1)/2,z1,x1-x0,T);wall(x1,(z0+z1)/2,T,z1-z0);
  wall(x0,(z0+door-1.3)/2,T,door-1.3-z0);wall(x0,(door+1.3+z1)/2,T,z1-door-1.3);wall(x0,door,T,2.6,GH+3,H-3);
@@ -373,16 +374,23 @@ const house={};
  const fl=new THREE.Mesh(new THREE.PlaneGeometry(x1-x0,z1-z0),new THREE.MeshLambertMaterial({color:0x8a7a62}));fl.rotation.x=-Math.PI/2;fl.position.set((x0+x1)/2,GH+.04,(z0+z1)/2);fl.receiveShadow=true;scene.add(fl);
  const plinth=new THREE.Mesh(new THREE.BoxGeometry(x1-x0+.6,.5,z1-z0+.6),new THREE.MeshLambertMaterial({color:0x9a958a}));plinth.position.set((x0+x1)/2,GH-.2,(z0+z1)/2);scene.add(plinth);
  // windows
- const winMat=new THREE.MeshLambertMaterial({color:0x2f3a3c});
- for(const z of [-12,-9,-1.5,1.5]){const w=new THREE.Mesh(new THREE.BoxGeometry(.08,1.6,1.8),winMat);w.position.set(x0-.22,GH+2.2,z);scene.add(w);}
- for(const x of [28,32,36]){for(const z of [z1+.22,z0-.22]){const w=new THREE.Mesh(new THREE.BoxGeometry(1.8,1.6,.08),winMat);w.position.set(x,GH+2.2,z);scene.add(w);}}
- // hip roof
- const e=GH+H,o=1.4,ridgeH=e+5.5,ax=x0-o,bx=x1+o,az=z0-o,bz=z1+o,mx=(x0+x1)/2,rz0=az+(bx-ax)/2,rz1=bz-(bx-ax)/2;
- const V=[[ax,e,bz],[ax,e,az],[mx,ridgeH,rz0],[ax,e,bz],[mx,ridgeH,rz0],[mx,ridgeH,rz1],
-          [bx,e,az],[bx,e,bz],[mx,ridgeH,rz1],[bx,e,az],[mx,ridgeH,rz1],[mx,ridgeH,rz0],
-          [ax,e,az],[bx,e,az],[mx,ridgeH,rz0],[bx,e,bz],[ax,e,bz],[mx,ridgeH,rz1]];
- const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(V.flat(),3));g.computeVertexNormals();
- const roof=new THREE.Mesh(g,new THREE.MeshPhongMaterial({color:0xd5d9d6,specular:0x667070,shininess:25,side:THREE.DoubleSide,flatShading:true}));roof.castShadow=roof.receiveShadow=true;scene.add(roof);
+ const winMat=new THREE.MeshLambertMaterial({color:0x2f3a3c}),frameMat=new THREE.MeshLambertMaterial({color:0xfbfbf7});
+ const win=(x,z,alongZ)=>{const f=new THREE.Mesh(new THREE.BoxGeometry(alongZ?.1:2.1,1.95,alongZ?2.1:.1),frameMat);f.position.set(x,GH+2.2,z);scene.add(f);
+   const g=new THREE.Mesh(new THREE.BoxGeometry(alongZ?.14:1.8,1.6,alongZ?1.8:.14),winMat);g.position.set(x,GH+2.25,z);scene.add(g);
+   const bar=new THREE.Mesh(new THREE.BoxGeometry(alongZ?.16:1.8,.07,alongZ?1.8:.16),frameMat);bar.position.set(x,GH+2.25,z);scene.add(bar);};
+ for(const z of [-12,-9,-1.5,1.5])win(x0-.2,z,true);
+ for(const x of [28,32,36])for(const z of [z1+.2,z0-.2])win(x,z,false);
+ const ac=new THREE.Mesh(new THREE.BoxGeometry(.55,.42,.75),new THREE.MeshLambertMaterial({color:0xd9dbd5}));ac.position.set(x0-.42,GH+1.35,-12);ac.castShadow=true;scene.add(ac);
+ // flared hip roof (photo 3): steep at the ridge, shallow at the eaves
+ const e=GH+H,o=1.6,RH=6.4,cx=(x0+x1)/2,cz=(z0+z1)/2,HX=(x1-x0)/2+o,HZ=(z1-z0)/2+o,RZ=HZ-HX*.92,NR=16,P=[],U=[],I=[];
+ const ring=t=>{const hx=HX*(1-t)+.05,hz=lerp(HZ,RZ,t),y=e+RH*Math.pow(t,1.8);return[[cx-hx,cz+hz],[cx+hx,cz+hz],[cx+hx,cz-hz],[cx-hx,cz-hz]].map(([x,z])=>[x,y,z]);};
+ for(let k=0;k<NR;k++){const A=ring(k/NR),B=ring((k+1)/NR);
+   for(let sd=0;sd<4;sd++){const q=[A[sd],A[(sd+1)%4],B[(sd+1)%4],B[sd]],b=P.length/3;for(const v of q){P.push(v[0],v[1],v[2]);U.push(sd%2?v[2]:v[0],k/NR);}I.push(b,b+1,b+2,b,b+2,b+3);}}
+ const rg=new THREE.BufferGeometry();rg.setAttribute('position',new THREE.Float32BufferAttribute(P,3));rg.setAttribute('uv',new THREE.Float32BufferAttribute(U,2));rg.setIndex(I);rg.computeVertexNormals();
+ const tin=canvasTex(64,16,(g)=>{g.fillStyle='#d4d8d5';g.fillRect(0,0,64,16);g.fillStyle='#b9bfbc';for(let i=0;i<4;i++)g.fillRect(i*16,0,3,16);g.fillStyle='#e6e9e6';for(let i=0;i<4;i++)g.fillRect(i*16+8,0,2,16);},true);
+ const roof=new THREE.Mesh(rg,new THREE.MeshLambertMaterial({map:tin,side:THREE.DoubleSide}));roof.castShadow=roof.receiveShadow=true;scene.add(roof);
+ const ridge=new THREE.Mesh(new THREE.BoxGeometry(.35,.28,2*RZ+.4),new THREE.MeshLambertMaterial({color:0xc4c9c6}));ridge.position.set(cx,e+RH+.08,cz);ridge.castShadow=true;scene.add(ridge);
+ const bx=x1+o,ax=x0-o,az=z0-o,bz=z1+o,mx=cx;
  const eaves=new THREE.Mesh(new THREE.BoxGeometry(bx-ax,.25,bz-az),new THREE.MeshLambertMaterial({color:0xbfc4c0}));eaves.position.set(mx,e-.05,(az+bz)/2);scene.add(eaves);
  // door and the warm glow inside (way to location 2)
  house.mat=new THREE.MeshLambertMaterial({color:0x3e5a4c});house.door=new THREE.Mesh(new THREE.BoxGeometry(.22,3,2.6),house.mat);
@@ -419,6 +427,9 @@ function bonsai(x,z,s,seed){const r=rng32(seed);let p=new THREE.Vector3(x,height
   leafy.add(pad,tf(p.x,p.y+.15,p.z,0,0,.75*s,.28*s,.65*s),0x356329);}
 function ti(x,z,seed){const r=rng32(seed);for(let k=0;k<3;k++){const ox=x+(r()-.5)*.6,oz=z+(r()-.5)*.6,y=heightAt(ox,oz),h=.9+r()*.8;
   plants.add(cyl,tf(ox,y+h/2,oz,0,0,.04,h,.04),0x5a4a3a);rosette(ox,oz,8,.6,.12,.2,1.2,[0x8c1d3c,0xa0284a,0x6b1f3a],seed+k,y+h);}}
+const HOUSE_PATH=[[6.5,8],[12,3.2],[18,-1.6],[23.6,-5]];
+function nearHousePath(x,z){for(let i=0;i<HOUSE_PATH.length-1;i++){const [ax,az]=HOUSE_PATH[i],[bx,bz]=HOUSE_PATH[i+1],dx=bx-ax,dz=bz-az,t=clamp(((x-ax)*dx+(z-az)*dz)/(dx*dx+dz*dz),0,1);
+  if(Math.hypot(x-ax-dx*t,z-az-dz*t)<2.2)return true;}return false;}
 function shrub(x,z,s,c){leafy.add(ball,tf(x,heightAt(x,z)+.35*s,z,hash(x|0,z|0)*6,0,s,.75*s,s),c);}
 {const r=rng32(81);
  // garden planting around the pond and on the mound (photo 1)
@@ -426,9 +437,9 @@ function shrub(x,z,s,c){leafy.add(ball,tf(x,heightAt(x,z)+.35*s,z,hash(x|0,z|0)*
  for(const [x,z] of [[-4,-11.5],[6,-11],[-10.5,-7.5],[2.5,-20.5],[-12,10]])agave(x,z,.9+r()*.3);
  for(const [x,z,s] of [[9.5,-12.5,1.3],[11.5,-6,1.1],[7,-19,1],[-7,-17,.9]])bonsai(x,z,s,x*5+z|0);
  for(const [x,z] of [[-6,-20],[0,-21.5],[8.5,-20.5],[6,-21.8]])ti(x,z,x*3+z*11|0);
- for(const [x,z] of [[21,-12],[21,1.5],[20.5,-8]])fanPalm(x,z,1.3+r()*.4,x*7+z|0);
+ for(const [x,z] of [[16.5,-15.5],[21,1.5],[20.5,-8]])fanPalm(x,z,1.3+r()*.4,x*7+z|0);
  palm(-26,10,9,.22,91);palm(-31,4,10,.18,92);palm(-35,22,8,.25,93);palm(24,22,9,.2,94);palm(-20,36,8.5,.2,95);
- for(let i=0;i<26;i++){const x=-28+r()*56,z=-26+r()*52;if(pondD(x,z)<1.5||moundD(x,z)<1.15||inHouse(x+2.5,z)||Math.abs(x-1)<5&&z>2&&z<30||x>20&&z<-14)continue;
+ for(let i=0;i<26;i++){const x=-28+r()*56,z=-26+r()*52;if(pondD(x,z)<1.5||moundD(x,z)<1.15||inHouse(x+2.5,z)||Math.abs(x-1)<5&&z>2&&z<30||x>20&&z<-14||nearHousePath(x,z))continue;
    shrub(x,z,.5+r()*.6,r()<.5?0x2f6b2a:0x3f7d30);}
  // lowland rainforest canopy and palms down the hill
  const N=isTouch?240:360,trunks=[],crowns=[];let tries=0;
@@ -451,6 +462,18 @@ function shrub(x,z,s,c){leafy.add(ball,tf(x,heightAt(x,z)+.35*s,z,hash(x|0,z|0)*
    _e.set((r()-.5)*.5,r()*6,(r()-.5)*.5);_q.setFromEuler(_e);_m.compose(_v.set(x,h,z),_q,_s.set(s,s,s));tuft.setMatrixAt(n,_m);
    _c.setHex(mossH(x,z)>.1?0xb6dd48:r()<.5?0x4f9224:0x72aa30).offsetHSL(0,0,(r()-.5)*.06);tuft.setColorAt(n,_c);n++;}
  tuft.count=n;scene.add(tuft);}
+// round trimmed tree, stone lanterns and dracaenas (photo 3)
+const lanternGlow=new THREE.MeshLambertMaterial({color:0x2a2622,emissive:0x000000});
+{const r=rng32(97);
+ const topi=new THREE.IcosahedronGeometry(1,2),tp=topi.attributes.position;
+ for(let i=0;i<tp.count;i++){const x=tp.getX(i),y=tp.getY(i),z=tp.getZ(i),k=1+.07*noise(x*3+y*2+1,z*3-y*2);tp.setXYZ(i,x*k,y*k,z*k);}topi.computeVertexNormals();
+ const [tx,tz]=[20.6,-13];const ty=heightAt(tx,tz);plants.add(cyl,tf(tx,ty+.6,tz,0,0,.35,1.4,.35),0x5b4a3a);leafy.add(topi,tf(tx,ty+3.3,tz,0,0,3.2,3,3.2),0x2b5420);circles.push({x:tx,z:tz,r:2.3});
+ const toro=(x,z,s)=>{const y=heightAt(x,z),st=new THREE.MeshPhongMaterial({map:lavaTex,color:0x8a8178,shininess:3,specular:0x0a0a0a,flatShading:true});
+   const part=(geo,py,sx,sy,sz,mat)=>{const m=new THREE.Mesh(geo,mat||st);m.position.set(x,y+py*s,z);m.scale.set(sx*s,sy*s,sz*s);m.castShadow=m.receiveShadow=true;scene.add(m);};
+   part(new THREE.CylinderGeometry(1,1.1,1,6),.12,.5,.25,.5);part(new THREE.CylinderGeometry(1,1,1,8),.75,.2,1.1,.2);part(new THREE.CylinderGeometry(1,.8,1,6),1.38,.42,.18,.42);
+   part(new THREE.BoxGeometry(1,1,1),1.72,.5,.5,.5,lanternGlow);part(new THREE.ConeGeometry(1,1,6),2.2,.75,.45,.75);part(new THREE.SphereGeometry(1,8,6),2.5,.12,.14,.12);circles.push({x,z,r:.5*s});};
+ toro(18.6,1.2,1.15);toro(-10.6,3.6,1);
+ for(const [x,z,h] of [[18.6,-10.6,2.6],[17.2,5.2,2.1],[10.5,8.5,1.8]]){const y=heightAt(x,z);plants.add(cyl,tf(x,y+h/2,z,0,.06,.05,h,.05),0x6a5a48);rosette(x,z,18,.75,.06,.1,1.4,[0x5f8f2c,0x7aa83a,0x4c7a26],x*3+z|0,y+h);}}
 plants.mesh(flatMat());leafy.mesh(flatMat());
 
 // ---------- pipes: water instead of cables ----------
@@ -720,7 +743,7 @@ function loop(now){
   fallMat.opacity=.82*fx.fall;fallTex.offset.y-=dt*1.3;TANK.water.material.opacity=.85*fx.fall;
   pondMat.color.copy(POND_DIRTY).lerp(POND_CLEAN,fx.pond);
   house.door.position.z=HOUSE.door-2.5*smooth(0,1,house.t);
-  house.glow.material.color.setHSL(.11,.9,.72+.06*Math.sin(now/600));
+  house.glow.material.color.setHSL(.11,.9,.72+.06*Math.sin(now/600));lanternGlow.emissive.setRGB(1*fx.fall,.72*fx.fall,.32*fx.fall);
   pipes.forEach((p,i)=>{if(solved.has(i)){p.mat.emissive.setHex(0x3cc6ff);p.em.offset.x-=dt*1.2;}else p.mat.emissive.setHex(0);});
   if(started&&fx.houseOpen&&!save.seenFin&&inHouse(player.x,player.z)&&player.x>HOUSE.x0+.8){save.seenFin=true;persist();ui.fin.hidden=false;if(locked&&document.exitPointerLock)document.exitPointerLock();}
   if(started&&now>nextBird){chirp();nextBird=now+2500+Math.random()*7000;}
