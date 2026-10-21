@@ -337,21 +337,38 @@ const fallMat=new THREE.MeshBasicMaterial({map:fallTex,transparent:true,opacity:
  scene.add(new THREE.Mesh(g,fallMat));}
 
 // ---------- stone tables and stepping stones (photo 1) ----------
-function slab(x,z,R,h,seed){const r=rng32(seed),sh=new THREE.Shape(),N=14;
-  for(let i=0;i<N;i++){const a=i/N*Math.PI*2,rr=R*(.82+r()*.3)*(1+.18*Math.cos(2*a));const px=Math.cos(a)*rr*1.25,py=Math.sin(a)*rr;i?sh.lineTo(px,py):sh.moveTo(px,py);}
-  const t=lavaTex.clone();t.needsUpdate=true;t.repeat.set(.35,.35);const mat=new THREE.MeshPhongMaterial({map:t,color:0x8a8178,specular:0x111111,shininess:4});
-  const top=new THREE.Mesh(new THREE.ExtrudeGeometry(sh,{depth:.22,bevelEnabled:true,bevelSize:.08,bevelThickness:.05,bevelSegments:2}),mat);
-  top.rotation.x=-Math.PI/2;const y=heightAt(x,z);top.position.set(x,y+h,z);top.rotation.z=r()*6;top.castShadow=top.receiveShadow=true;scene.add(top);
-  const leg=new THREE.Mesh(new THREE.CylinderGeometry(R*.38,R*.48,h+.1,9),mat);leg.position.set(x,y+h/2,z);leg.castShadow=true;scene.add(leg);
-  circles.push({x,z,r:R*1.05});return y+h+.27;}
-const TABLE={x:1,z:14};const TABLE_TOP=slab(TABLE.x,TABLE.z,1.35,.62,61);
-slab(-9,15,.85,.5,62);
+// stone tables: a thin lava slab on short bell-shaped legs (photos 4-5)
+const lichenTex=canvasTex(256,256,(g)=>{const r=rng32(27);g.drawImage(lavaTex.image,0,0);
+  for(let i=0;i<26;i++){g.fillStyle=`rgba(${200+r()*40},${200+r()*40},${190+r()*30},${.25+r()*.3})`;g.beginPath();g.ellipse(r()*256,r()*256,4+r()*22,3+r()*12,r()*3,0,7);g.fill();}
+  g.fillStyle='rgba(110,140,160,.35)';g.beginPath();g.ellipse(150,120,30,14,.4,0,7);g.fill();},true);
+const legGeo=new THREE.LatheGeometry([[0,0],[.33,0],[.36,.14],[.34,.32],[.28,.48],[.22,.6],[0,.6]].map(([a,b])=>new THREE.Vector2(a,b)),10);
+function slab(x,z,R,h,seed,legs,aspect){const r=rng32(seed),sh=new THREE.Shape(),N=18;aspect=aspect||1.4;
+  for(let i=0;i<N;i++){const a=i/N*Math.PI*2,rr=R*(.9+r()*.14)*(1+.1*Math.cos(3*a+r()));const px=Math.cos(a)*rr*aspect,py=Math.sin(a)*rr;i?sh.lineTo(px,py):sh.moveTo(px,py);}
+  const t=lichenTex.clone();t.needsUpdate=true;t.repeat.set(.3,.3);const mat=new THREE.MeshPhongMaterial({map:t,color:0x9a9188,specular:0x111111,shininess:4});
+  const top=new THREE.Mesh(new THREE.ExtrudeGeometry(sh,{depth:.12,bevelEnabled:true,bevelSize:.12,bevelThickness:.07,bevelSegments:3,curveSegments:6}),mat);
+  const y=heightAt(x,z),th=r()*6;top.rotation.x=-Math.PI/2;top.rotation.z=th;top.position.set(x,y+h,z);top.castShadow=top.receiveShadow=true;scene.add(top);
+  const LEGS=legs===3?[[-.55,-.2],[-.1,.32],[.6,-.05]]:legs===2?[[-.55,0],[.55,0]]:[[0,0]];const c=Math.cos(th),sn=Math.sin(th);
+  for(const [lx,lz] of LEGS){const px=lx*R*aspect,py=lz*R,wx=x+px*c-py*sn,wz=z-(px*sn+py*c),ls=R*.75;
+    const leg=new THREE.Mesh(legGeo,mat);leg.position.set(wx,heightAt(wx,wz)-.05,wz);leg.scale.set(ls,(h+.06)/.6,ls);leg.castShadow=true;leg.receiveShadow=true;scene.add(leg);}
+  circles.push({x,z,r:R*Math.min(aspect,1.25)});return y+h+.19;}
+const TABLE={x:1,z:14};const TABLE_TOP=slab(TABLE.x,TABLE.z,1.4,.8,61,3,1.45);
+slab(-9,15,.75,.48,62,1,1.1);
+const BENCH={x:-6.2,z:6};slab(BENCH.x,BENCH.z,.62,.5,63,2,1.7);
+{const y=heightAt(-8.8,7.1),pot=new THREE.Mesh(new THREE.CylinderGeometry(.42,.32,.6,10),new THREE.MeshLambertMaterial({color:0x6d6a63}));pot.position.set(-8.8,y+.3,7.1);pot.castShadow=true;scene.add(pot);circles.push({x:-8.8,z:7.1,r:.5});}
+// stepping stones: flat, irregular, flush with the lawn
 {const r=rng32(71),pts=[];
- for(const [ax,az,bx,bz] of [[-3,25,-.5,18],[2.4,11.5,4.3,4.6],[6.5,8,12,3.2],[12,3.2,18,-1.6],[18,-1.6,23.6,-5]]){const L=Math.hypot(bx-ax,bz-az);for(let s=0;s<=L;s+=1.4)pts.push([lerp(ax,bx,s/L)+(r()-.5)*.6,lerp(az,bz,s/L)+(r()-.5)*.4,.55+r()*.25]);}
- for(let i=0;i<40;i++){const x=-14+r()*28,z=4+r()*20;if(pondD(x,z)<1.4||Math.hypot(x-TABLE.x,z-TABLE.z)<2.2||Math.hypot(x+9,z-15)<1.5)continue;pts.push([x,z,.35+r()*.45]);}
- const im=new THREE.InstancedMesh(new THREE.CylinderGeometry(1,1.05,.16,9),new THREE.MeshPhongMaterial({color:0xffffff,map:lavaTex,shininess:3,specular:0x0a0a0a}),pts.length);
- pts.forEach(([x,z,s],i)=>{_e.set(0,r()*6,0);_q.setFromEuler(_e);_m.compose(_v.set(x,heightAt(x,z)+.03,z),_q,_s.set(s*1.25,1,s));im.setMatrixAt(i,_m);
-   _c.setHex(0x6e665e).offsetHSL(0,0,(r()-.5)*.08);im.setColorAt(i,_c);});im.receiveShadow=true;scene.add(im);}
+ const far=(x,z,s)=>pts.every(p=>Math.hypot(p[0]-x,p[1]-z)>(p[2]+s)*1.15+.15);
+ for(const [ax,az,bx,bz] of [[-3,25,-.5,18],[2.4,11.5,4.3,4.6],[6.5,8,12,3.2],[12,3.2,18,-1.6],[18,-1.6,23.6,-5]]){const L=Math.hypot(bx-ax,bz-az);
+   for(let s=0;s<=L;s+=1.35){const x=lerp(ax,bx,s/L)+(r()-.5)*.5,z=lerp(az,bz,s/L)+(r()-.5)*.4,sz=.42+r()*.2;if(far(x,z,sz))pts.push([x,z,sz]);}}
+ for(let i=0;i<260&&pts.length<120;i++){const x=-13+r()*26,z=3.4+r()*20,sz=.25+r()*.5;
+   if(pondD(x,z)<1.35||Math.hypot(x-TABLE.x,z-TABLE.z)<2.6||Math.hypot(x-BENCH.x,z-BENCH.z)<1.6||Math.hypot(x+9,z-15)<1.2||!far(x,z,sz))continue;pts.push([x,z,sz]);}
+ const mat=new THREE.MeshPhongMaterial({color:0xffffff,map:lavaTex,shininess:3,specular:0x0a0a0a});
+ const geos=[0,1,2].map(k=>{const rr=rng32(300+k),sh=new THREE.Shape(),N=12;for(let i=0;i<N;i++){const a=i/N*Math.PI*2,d=.82+rr()*.3;i?sh.lineTo(Math.cos(a)*d,Math.sin(a)*d):sh.moveTo(Math.cos(a)*d,Math.sin(a)*d);}
+   const g=new THREE.ExtrudeGeometry(sh,{depth:.04,bevelEnabled:true,bevelSize:.06,bevelThickness:.04,bevelSegments:2,curveSegments:4});g.rotateX(-Math.PI/2);return g;});
+ const groups=[[],[],[]];pts.forEach((p,i)=>groups[i%3].push(p));
+ groups.forEach((list,k)=>{const im=new THREE.InstancedMesh(geos[k],mat,list.length);
+   list.forEach(([x,z,s],i)=>{_e.set(0,r()*6,0);_q.setFromEuler(_e);_m.compose(_v.set(x,heightAt(x,z)-.03,z),_q,_s.set(s*(1+r()*.35),1,s));im.setMatrixAt(i,_m);
+     _c.setHex(r()<.2?0x6a6b4a:0x6e6760).offsetHSL(0,0,(r()-.5)*.06);im.setColorAt(i,_c);});im.receiveShadow=true;scene.add(im);});}
 
 // ---------- water tank and standing stone on the mound (photo 2) ----------
 const TANK={x:4.6,z:-17.6};
@@ -570,6 +587,41 @@ const stairs={stones:[],col:addBox(-.9,2.9,-9.4,-7.4),t:0,up:false};
    stairs.stones.push({m,y,delay:i*.18});}}
 flushRocks();
 
+// ---------- feral chickens (photo 4) ----------
+const chickens=[];
+{const M=c=>new THREE.MeshLambertMaterial({color:c}),body=new THREE.SphereGeometry(1,8,6),tailG=new THREE.ConeGeometry(1,1,5),
+   red=M(0xc8242b),beak=M(0xe0b040),legM=M(0xd9a441),tailM=M(0x1d3b2c);
+ const make=(x,z,col,rest)=>{const g=new THREE.Group(),bm=M(col),b=new THREE.Mesh(body,bm);b.scale.set(.17,.16,.24);b.position.y=.3;b.castShadow=true;g.add(b);
+   const tl=new THREE.Mesh(tailG,col===0xb4602a?tailM:bm);tl.scale.set(.1,.26,.06);tl.position.set(0,.43,-.2);tl.rotation.x=-.7;g.add(tl);
+   const neck=new THREE.Group();neck.position.set(0,.36,.16);g.add(neck);
+   const hd=new THREE.Mesh(body,bm);hd.scale.setScalar(.075);hd.position.set(0,.1,.04);neck.add(hd);
+   const cb=new THREE.Mesh(body,red);cb.scale.set(.02,.04,.05);cb.position.set(0,.18,.04);neck.add(cb);
+   const bk=new THREE.Mesh(tailG,beak);bk.scale.set(.025,.06,.025);bk.rotation.x=Math.PI/2;bk.position.set(0,.09,.13);neck.add(bk);
+   const legs=[];for(const lx of [-.06,.06]){const l=new THREE.Mesh(cyl,legM);l.scale.set(.012,.17,.012);l.position.set(lx,.09,0);g.add(l);legs.push(l);}
+   g.position.set(x,heightAt(x,z),z);g.rotation.y=Math.random()*6;scene.add(g);
+   const ch={g,neck,b,legs,home:[x,z],tx:x,tz:z,state:rest?'rest':'idle',t:Math.random()*3,rest,ph:Math.random()*6};
+   if(rest){b.position.y=.17;legs.forEach(l=>l.visible=false);}chickens.push(ch);};
+ make(TABLE.x-.5,TABLE.z+.1,0x9a6a3e,true);make(TABLE.x+.7,TABLE.z-.2,0xe8e2d4,true);
+ make(-4,10,0xb4602a);make(7,19,0xc28a4a);make(11,2,0x9a6a3e);make(-11,1,0xb4602a);make(3,31,0xc28a4a);}
+let clockT=0;
+function cluck(){if(!AC)return;tone(560,.08,'triangle',.04);tone(420,.12,'triangle',.035,.09);}
+function updateChickens(dt){clockT+=dt;
+  for(const c of chickens){const g=c.g,dx=g.position.x-player.x,dz=g.position.z-player.z,dp=Math.hypot(dx,dz);
+    if(c.rest){c.neck.rotation.x=.2+.15*Math.sin(clockT*1.3+c.ph);if(dp<1.8&&c.t<=0){cluck();c.t=2.5;}c.t-=dt;continue;}
+    c.t-=dt;let speed=0;
+    if(dp<2.4&&started){c.state='flee';c.tx=g.position.x+dx/dp*4;c.tz=g.position.z+dz/dp*4;if(c.t<0){cluck();c.t=1.2;}}
+    else if(c.state==='flee'&&dp>4){c.state='idle';c.t=1;}
+    if(c.t<0&&c.state!=='flee'){const r=Math.random();
+      if(r<.45){c.state='walk';const a=Math.random()*6.28,d=Math.random()*4;c.tx=c.home[0]+Math.cos(a)*d;c.tz=c.home[1]+Math.sin(a)*d;c.t=4;}
+      else if(r<.85){c.state='peck';c.t=1.2+Math.random()*1.5;}else{c.state='idle';c.t=1+Math.random()*2;}}
+    if(c.state==='walk'||c.state==='flee'){const vx=c.tx-g.position.x,vz=c.tz-g.position.z,l=Math.hypot(vx,vz);
+      if(l<.15){c.state='idle';c.t=.5;}else{speed=c.state==='flee'?3.2:.9;const nx=g.position.x+vx/l*speed*dt,nz=g.position.z+vz/l*speed*dt;
+        const want=Math.atan2(vx,vz);let da=want-g.rotation.y;da=Math.atan2(Math.sin(da),Math.cos(da));g.rotation.y+=da*Math.min(1,dt*10);
+        if(dry(nx,nz)&&!onBridge(nx,nz)&&collide(nx,nz)[0]===nx){g.position.x=nx;g.position.z=nz;}else{c.state='idle';c.t=.3;}}}
+    g.position.y=heightAt(g.position.x,g.position.z);
+    const step=speed?Math.sin(clockT*speed*9+c.ph):0;c.legs[0].rotation.x=step*.6;c.legs[1].rotation.x=-step*.6;c.b.position.y=.3+Math.abs(step)*.02;
+    c.neck.rotation.x=c.state==='peck'?.9*Math.max(0,Math.sin(clockT*9+c.ph)):speed?.15*Math.sin(clockT*12+c.ph):0;}}
+
 // ---------- state & world reactions ----------
 const fx={pond:0,fall:0,houseOpen:false};
 function applyState(instant){
@@ -746,6 +798,7 @@ function loop(now){
   house.glow.material.color.setHSL(.11,.9,.72+.06*Math.sin(now/600));lanternGlow.emissive.setRGB(1*fx.fall,.72*fx.fall,.32*fx.fall);
   pipes.forEach((p,i)=>{if(solved.has(i)){p.mat.emissive.setHex(0x3cc6ff);p.em.offset.x-=dt*1.2;}else p.mat.emissive.setHex(0);});
   if(started&&fx.houseOpen&&!save.seenFin&&inHouse(player.x,player.z)&&player.x>HOUSE.x0+.8){save.seenFin=true;persist();ui.fin.hidden=false;if(locked&&document.exitPointerLock)document.exitPointerLock();}
+  updateChickens(dt);
   if(started&&now>nextBird){chirp();nextBird=now+2500+Math.random()*7000;}
   // puzzle overlay
   if(!ui.pz.hidden&&pz.pan){pz.t+=dt;if(pz.state==='fail'&&now>pz.resetAt){pz.state='idle';pz.path=[];pz.bad=[];}
