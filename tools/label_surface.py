@@ -34,6 +34,8 @@ m = hd & skin & (np.abs(x) > 11.3) & (z < 68); L[m] = side('ear_R', 'ear_L')[m]
 m = hd & white & (y < -3) & (z < 64.5) & (np.abs(x) < 11.5); L[m] = ID['mask']
 m = hd & white & ~((y < -3) & (z < 64.5) & (np.abs(x) < 11.5)); L[m] = ID['hair']
 m = hd & dark; L[m] = ID['head']
+# white glare baked into the cap texture is not hair: nothing but cap above the cap rim
+m = hd & (z > 74) & ~np.isin(L, [ID['cap']]); L[m] = ID['cap']
 # --- graph smoothing: majority vote among neighbours, a few rounds (fills undecided + removes speckle)
 n = len(V); e = np.vstack([F[:, [0, 1]], F[:, [1, 2]], F[:, [2, 0]]])
 A = sp.coo_matrix((np.ones(len(e) * 2), (np.r_[e[:, 0], e[:, 1]], np.r_[e[:, 1], e[:, 0]])), shape=(n, n)).tocsr()

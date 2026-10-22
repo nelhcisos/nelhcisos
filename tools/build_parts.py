@@ -108,6 +108,9 @@ else:
     plane = np.where(z < Z_BASE, c('base'), np.where(z < Z_CROC, np.where(x < 0, c('croc_R'), c('croc_L')),
                      np.where(z < Z_HEM, c('pants'), c('shirt'))))
     L[body_set] = plane[body_set]
+    # arms / gloves must not grow into the torso: keep them outside |x| = 7 mm
+    limb = np.isin(L, [c('arm_R'), c('arm_L'), c('glove_R'), c('glove_L')]) & (np.abs(x) < 7.0)
+    L[limb] = plane[limb]
     m = (L0 == c('tshirt')) & (depth >= 1.5); L[m] = c('shirt')
     # neck cylinder: from inside the shirt up into the head
     neck_xy = np.array([0.0, -1.0])
@@ -123,6 +126,20 @@ else:
     G = np.zeros(shape, np.int16)
     G[t] = L
     del L0, P, x, y, z, L, d_skull, skull
+
+    # smooth the head/hair seam: thin skin slivers between fringe spikes go to hair, thin hair dents go to head
+    hd = (G == head)
+    sm = ndi.gaussian_filter(hd.astype(np.float32), 0.6 / H) > 0.5
+    sm &= occ & head_zone_g
+    lost = hd & ~sm
+    gain = sm & ~hd & (G == hair)
+    G[gain] = head
+    if lost.any():
+        tmp = G.copy(); tmp[lost] = 0; tmp[tmp == head] = 0
+        near = ndi.distance_transform_edt(tmp == 0, return_distances=False, return_indices=True)
+        G[lost] = tmp[near[0][lost], near[1][lost], near[2][lost]]
+        del tmp, near
+    log('head seam smoothed: lost', int(lost.sum()), 'gained', int(gain.sum()), 'voxels')
 
     # ---------------------------------------------------------------- cleanup: one connected piece per part
     for k in PARTS:
@@ -191,13 +208,14 @@ def key(p, n, size, z0, z1, sides=4, taper=0.8):
 
 WALL = 0.4   # minimum wall around a socket, mm
 
-def ring_ok(p, n, r_out, t0, t1, want, nt=10, na=12):
+def ring_ok(p, n, r_out, t0, t1, want, nt=10, na=12, near_ok=None, near_t=0.0):
     u = np.cross(n, [1, 0, 0] if abs(n[0]) < 0.9 else [0, 1, 0]); u /= np.linalg.norm(u); w = np.cross(n, u)
     for t in np.linspace(t0, t1, nt):
         for ang in np.linspace(0, 2 * np.pi, na, endpoint=False):
             q = p + n * t + (u * np.cos(ang) + w * np.sin(ang)) * r_out
             ii = tuple(idx_of(q))
-            if G[ii] != want or not occ[ii]: return False
+            if not occ[ii]: return False
+            if G[ii] != want and not (near_ok is not None and abs(t) < near_t and G[ii] == near_ok): return False
     return True
 
 def peg(male, female, dia, length, anchor=None, axis=None, at=None, sides=4):
@@ -214,7 +232,8 @@ def peg(male, female, dia, length, anchor=None, axis=None, at=None, sides=4):
         cen = P.mean(0)
         score = d_in[tuple(pts.T)] - 0.25 * np.linalg.norm(P - cen, axis=1)
         order = np.argsort(-score)
-    cand = order[:400:20]
+    centre_i = int(np.argmin(np.linalg.norm(P - P.mean(0), axis=1)))
+    cand = [centre_i] + list(order[:600:15])
     anchor = anchor or length
     for scale in (1.0, 0.85, 0.7, 0.55):
         r = dia * scale / 2; rc = r / np.cos(np.pi / sides); Lf = length * max(scale, 0.6)
@@ -230,11 +249,11 @@ def peg(male, female, dia, length, anchor=None, axis=None, at=None, sides=4):
                 n = np.asarray(axis, float)
             if np.linalg.norm(n) < 1e-6: continue
             n = n / np.linalg.norm(n)
-            if not ring_ok(p, n, rc + PEG_CLEAR + WALL, 0.15, Lf + PEG_DEPTH_CLEAR, kf): continue
+            if not ring_ok(p, n, rc + PEG_CLEAR + WALL, 0.15, Lf + PEG_DEPTH_CLEAR, kf, near_ok=km, near_t=0.9): continue
             # root inside the male part: as long as it fits, at least 0.3 mm
             La = 0.0
             for tt in np.arange(0.3, anchor + 1e-6, 0.3):
-                if ring_ok(p, n, rc + 0.1, -tt, -0.05, km, nt=4): La = tt
+                if ring_ok(p, n, rc + 0.1, -tt, -0.05, km, nt=4, near_ok=kf, near_t=0.6): La = tt
                 else: break
             if La < 0.3: continue
             pin = key(p, n, 2 * r, -La, Lf, sides, taper=0.8)

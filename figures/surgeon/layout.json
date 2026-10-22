@@ -1,0 +1,215 @@
+{
+ "plate_mm": [
+  218.0,
+  123.0
+ ],
+ "tilt_deg": 25.0,
+ "lift_mm": 5.0,
+ "max_height_mm": 35.6,
+ "parts": {
+  "base": {
+   "footprint_mm": [
+    41.0,
+    41.1
+   ],
+   "height_mm": 6.8,
+   "hidden_side_was": [
+    0.0,
+    0.0,
+    -1.0
+   ]
+  },
+  "cap": {
+   "footprint_mm": [
+    36.4,
+    42.4
+   ],
+   "height_mm": 33.7,
+   "hidden_side_was": [
+    -0.09,
+    -0.45,
+    -0.89
+   ]
+  },
+  "hair": {
+   "footprint_mm": [
+    30.9,
+    33.0
+   ],
+   "height_mm": 33.3,
+   "hidden_side_was": [
+    -0.0,
+    0.19,
+    0.98
+   ]
+  },
+  "head": {
+   "footprint_mm": [
+    27.4,
+    31.2
+   ],
+   "height_mm": 35.6,
+   "hidden_side_was": [
+    0.12,
+    0.61,
+    0.78
+   ]
+  },
+  "shirt": {
+   "footprint_mm": [
+    21.6,
+    21.3
+   ],
+   "height_mm": 29.5,
+   "hidden_side_was": [
+    0.01,
+    -0.16,
+    -0.99
+   ]
+  },
+  "pants": {
+   "footprint_mm": [
+    20.9,
+    19.3
+   ],
+   "height_mm": 33.4,
+   "hidden_side_was": [
+    0.01,
+    0.0,
+    -1.0
+   ]
+  },
+  "mask": {
+   "footprint_mm": [
+    21.7,
+    10.3
+   ],
+   "height_mm": 17.9,
+   "hidden_side_was": [
+    0.15,
+    0.76,
+    0.63
+   ]
+  },
+  "croc_R": {
+   "footprint_mm": [
+    16.2,
+    8.9
+   ],
+   "height_mm": 16.8,
+   "hidden_side_was": [
+    0.77,
+    0.0,
+    0.64
+   ]
+  },
+  "croc_L": {
+   "footprint_mm": [
+    8.8,
+    16.2
+   ],
+   "height_mm": 16.9,
+   "hidden_side_was": [
+    -0.8,
+    0.0,
+    0.6
+   ]
+  },
+  "ear_L": {
+   "footprint_mm": [
+    10.3,
+    7.7
+   ],
+   "height_mm": 13.6,
+   "hidden_side_was": [
+    -0.72,
+    0.21,
+    0.66
+   ]
+  },
+  "neck": {
+   "footprint_mm": [
+    9.4,
+    7.4
+   ],
+   "height_mm": 14.6,
+   "hidden_side_was": [
+    0.1,
+    0.97,
+    -0.21
+   ]
+  },
+  "ear_R": {
+   "footprint_mm": [
+    9.9,
+    6.8
+   ],
+   "height_mm": 12.7,
+   "hidden_side_was": [
+    0.9,
+    0.14,
+    0.42
+   ]
+  },
+  "glove_L": {
+   "footprint_mm": [
+    8.8,
+    5.4
+   ],
+   "height_mm": 9.0,
+   "hidden_side_was": [
+    -0.97,
+    0.02,
+    0.23
+   ]
+  },
+  "glove_R": {
+   "footprint_mm": [
+    4.9,
+    9.0
+   ],
+   "height_mm": 10.0,
+   "hidden_side_was": [
+    0.96,
+    -0.01,
+    0.27
+   ]
+  },
+  "arm_R": {
+   "footprint_mm": [
+    6.1,
+    6.2
+   ],
+   "height_mm": 10.5,
+   "hidden_side_was": [
+    0.98,
+    -0.11,
+    0.16
+   ]
+  },
+  "arm_L": {
+   "footprint_mm": [
+    5.9,
+    5.4
+   ],
+   "height_mm": 9.3,
+   "hidden_side_was": [
+    -0.97,
+    -0.21,
+    0.12
+   ]
+  },
+  "tshirt": {
+   "footprint_mm": [
+    3.5,
+    6.5
+   ],
+   "height_mm": 9.3,
+   "hidden_side_was": [
+    0.07,
+    0.7,
+    -0.71
+   ]
+  }
+ }
+}
