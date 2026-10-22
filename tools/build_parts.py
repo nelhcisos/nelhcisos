@@ -63,34 +63,46 @@ else:
     d_in = ndi.distance_transform_edt(occ) * H
     log('distance fields done')
     work = occ | (d_out <= BAND)
+    del d_out
 
-    # ---------------------------------------------------------------- 2. nearest surface label
+    # ---------------------------------------------------------------- 2. nearest surface label (grid EDT)
     good = SL > 0
-    tree = cKDTree(V[good]); labs_good = SL[good]
-    # fill undecided surface vertices
     if (~good).any():
-        _, j = tree.query(V[~good]); SL[~good] = labs_good[j]
-    idx = np.argwhere(work)
-    P = lo + idx * H
-    dist, j = tree.query(P, workers=-1)
-    L0 = labs_good[j]
+        _, j = cKDTree(V[good]).query(V[~good]); SL[~good] = SL[good][j]
+    seed = np.zeros(shape, np.int16)
+    vi = np.clip(np.round((V - lo) / H).astype(int), 0, shape - 1)
+    seed[vi[:, 0], vi[:, 1], vi[:, 2]] = SL
+    nearest = ndi.distance_transform_edt(seed == 0, return_distances=False, return_indices=True).astype(np.int32)
+    L0g = seed[nearest[0], nearest[1], nearest[2]]
+    del nearest, seed
     log('nearest-label done')
 
     # ---------------------------------------------------------------- 3. rules
-    x, y, z = P.T
-    inside = occ[idx[:, 0], idx[:, 1], idx[:, 2]]
-    depth = np.where(inside, dist, 0.0)
-    L = L0.copy()
     c = lambda n: ID[n]
-    head_zone = z >= Z_HEAD - 0.8
-    # head shells over a core
     cap, hair, mask, head = c('cap'), c('hair'), c('mask'), c('head')
-    m = head_zone & (L0 == cap) & (depth >= 1.4) & (depth < 2.6); L[m] = hair
-    m = head_zone & (L0 == cap) & (depth >= 2.6); L[m] = head
-    m = head_zone & (L0 == hair) & (depth >= 2.0); L[m] = head
-    m = head_zone & (L0 == mask) & (depth >= 1.0); L[m] = head
-    for e in ('ear_R', 'ear_L'):
-        m = (L0 == c(e)) & (depth >= 3.0); L[m] = head
+    zz = lo[2] + np.arange(shape[2]) * H
+    head_zone_g = np.broadcast_to(zz >= Z_HEAD - 0.8, shape)
+    # smooth skull core: head-zone solid, shrunk 2.4 mm and smoothed -> hair/cap/mask/ears sit on it
+    hz = occ & head_zone_g
+    skull = ndi.gaussian_filter((ndi.distance_transform_edt(hz) * H > 2.4).astype(np.float32), 1.2 / H * 0.8) > 0.5
+    d_skull = ndi.distance_transform_edt(~skull) * H
+    log('skull core', round(skull.sum() * H ** 3, 1), 'mm3')
+
+    idx = np.argwhere(work)
+    P = lo + idx * H
+    x, y, z = P.T
+    t = tuple(idx.T)
+    L0 = L0g[t]; inside = occ[t]; depth = np.where(inside, d_in[t], 0.0); in_skull = skull[t]; dsk = d_skull[t]
+    del L0g
+    L = L0.copy()
+    head_zone = z >= Z_HEAD - 0.8
+    # inside the skull everything is head
+    L[head_zone & in_skull & inside] = head
+    out_sk = head_zone & ~in_skull
+    # cap: 1.4 mm shell; deeper cap material close to the skull becomes a hair "helmet" under the cap,
+    # deeper material far from the skull (knot) stays cap
+    m = out_sk & (L0 == cap) & (depth >= 1.4) & (dsk < 2.0); L[m] = hair
+    m = out_sk & (L0 == mask) & (depth >= 1.2); L[m] = head
     # body: flat cuts, limbs keep their nearest-surface volume
     body_set = np.isin(L0, [c('base'), c('croc_R'), c('croc_L'), c('pants'), c('shirt')]) | (~head_zone & np.isin(L0, [head, hair, mask, cap]))
     plane = np.where(z < Z_BASE, c('base'), np.where(z < Z_CROC, np.where(x < 0, c('croc_R'), c('croc_L')),
@@ -98,8 +110,7 @@ else:
     L[body_set] = plane[body_set]
     m = (L0 == c('tshirt')) & (depth >= 1.5); L[m] = c('shirt')
     # neck cylinder: from inside the shirt up into the head
-    nk = np.argwhere(SL == c('neck'))
-    neck_xy = V[SL == c('neck')][:, :2].mean(0) if len(nk) else np.array([0.0, 0.0])
+    neck_xy = np.array([0.0, -1.0])
     sl55 = SOLID.slice(55.0).to_polygons()
     if sl55:
         big = max(sl55, key=lambda p: len(p)); neck_xy = np.asarray(big).mean(0)
@@ -110,8 +121,8 @@ else:
     log('neck axis', neck_xy.round(2))
 
     G = np.zeros(shape, np.int16)
-    G[idx[:, 0], idx[:, 1], idx[:, 2]] = L
-    del L0, P, dist, j, x, y, z
+    G[t] = L
+    del L0, P, x, y, z, L, d_skull, skull
 
     # ---------------------------------------------------------------- cleanup: one connected piece per part
     for k in PARTS:
@@ -142,13 +153,19 @@ def region_mesh(k):
     ff = ff[:, ::-1]  # outward normals
     return mf.Manifold(mf.Mesh(vert_properties=vv.astype(np.float32), tri_verts=ff.astype(np.uint32)))
 
-parts = {}
+parts = {}; REG = {}
 for k, name in PARTS.items():
     if not (G == k).any(): log('MISSING', name); continue
     R = region_mesh(k)
     if R.status() != mf.Error.NoError: log('region error', name, R.status())
-    parts[name] = SOLID ^ R
-    log(name, 'vol', round(parts[name].volume(), 1), 'pieces', len(parts[name].decompose()))
+    REG[name] = R
+    pm = SOLID ^ R
+    pcs = sorted(pm.decompose(), key=lambda q: -q.volume())
+    keep = [q for q in pcs if q.volume() > max(0.3, 0.02 * pcs[0].volume())]
+    pm = keep[0]
+    for q in keep[1:]: pm = pm + q
+    parts[name] = pm
+    log(name, 'vol', round(pm.volume(), 1), 'pieces kept', len(keep), 'slivers dropped', len(pcs) - len(keep))
 
 # ---------------------------------------------------------------- 5. pegs
 idx_of = lambda p: np.clip(np.round((np.asarray(p) - lo) / H).astype(int), 0, shape - 1)
@@ -172,56 +189,71 @@ def key(p, n, size, z0, z1, sides=4, taper=0.8):
     M = np.hstack([frame(np.asarray(n, float)), np.asarray(p, float).reshape(3, 1)])
     return body.transform(M.tolist())
 
+WALL = 0.4   # minimum wall around a socket, mm
+
+def ring_ok(p, n, r_out, t0, t1, want, nt=10, na=12):
+    u = np.cross(n, [1, 0, 0] if abs(n[0]) < 0.9 else [0, 1, 0]); u /= np.linalg.norm(u); w = np.cross(n, u)
+    for t in np.linspace(t0, t1, nt):
+        for ang in np.linspace(0, 2 * np.pi, na, endpoint=False):
+            q = p + n * t + (u * np.cos(ang) + w * np.sin(ang)) * r_out
+            ii = tuple(idx_of(q))
+            if G[ii] != want or not occ[ii]: return False
+    return True
+
 def peg(male, female, dia, length, anchor=None, axis=None, at=None, sides=4):
-    """Peg on `male` going `length` mm into `female`. Socket in female gets clearance."""
+    """Tapered key on `male` going `length` mm into `female`; socket in female gets clearance."""
     km, kf = ID[male], ID[female]
     a = (G == km); b = (G == kf)
     iface = a & ndi.binary_dilation(b, iterations=1) & occ
     pts = np.argwhere(iface)
     if len(pts) == 0: return f'{male}->{female}: no contact'
+    P = lo + pts * H
     if at is not None:
-        pc = np.asarray(at, float)
-        sel = pts[np.argmin(np.linalg.norm(lo + pts * H - pc, axis=1))]
+        order = np.argsort(np.linalg.norm(P - np.asarray(at, float), axis=1))
     else:
-        # deepest interface voxel = farthest from the outer surface
-        sel = pts[np.argmax(d_in[tuple(pts.T)])]
-    p = lo + sel * H
-    if axis is None:
-        near = lambda msk: np.argwhere(msk[max(sel[0]-25,0):sel[0]+26, max(sel[1]-25,0):sel[1]+26, max(sel[2]-25,0):sel[2]+26]) + np.maximum(sel - 25, 0)
-        nb, na = near(b), near(a)
-        n = (lo + nb * H).mean(0) - (lo + na * H).mean(0)
-    else:
-        n = np.asarray(axis, float)
-    n /= np.linalg.norm(n)
+        cen = P.mean(0)
+        score = d_in[tuple(pts.T)] - 0.25 * np.linalg.norm(P - cen, axis=1)
+        order = np.argsort(-score)
+    cand = order[:400:20]
     anchor = anchor or length
-    # shrink until the peg sits fully inside male (anchor) and female (tip)
-    for scale in (1.0, 0.85, 0.7, 0.55, 0.45):
-        r = dia * scale / 2; Lf = length * max(scale, 0.6); La = anchor * max(scale, 0.6)
-        ok = True
-        for t in np.linspace(-La, Lf + PEG_DEPTH_CLEAR, 12):
-            for ang in np.linspace(0, 2 * np.pi, 10, endpoint=False):
-                u = np.cross(n, [1, 0, 0] if abs(n[0]) < 0.9 else [0, 1, 0]); u /= np.linalg.norm(u); w = np.cross(n, u)
-                q = p + n * t + (u * np.cos(ang) + w * np.sin(ang)) * (r / np.cos(np.pi / sides) + PEG_CLEAR + 0.2)
-                want = km if t < 0 else kf
-                if lab_at(q) != want or not occ[tuple(idx_of(q))]: ok = False; break
-            if not ok: break
-        if ok: break
-    if not ok: return f'{male}->{female}: no room for a peg (glue joint)'
-    # key starts inside the male part so its root is solid, tapers toward the tip in the female part
-    pin = key(p, n, 2 * r, -La, Lf, sides, taper=0.8)
-    hole = key(p, n, 2 * r + 2 * PEG_CLEAR, -La, Lf + PEG_DEPTH_CLEAR, sides, taper=0.8)  # same taper -> even gap
-    parts[male] = parts[male] + (pin ^ (SOLID))
-    parts[female] = parts[female] - hole
-    return f'{male}->{female}: {"square" if sides==4 else str(sides)+"-sided"} key {2*r:.2f} mm, depth {Lf:.1f} mm at {np.round(p,1).tolist()}'
+    for scale in (1.0, 0.85, 0.7, 0.55):
+        r = dia * scale / 2; rc = r / np.cos(np.pi / sides); Lf = length * max(scale, 0.6)
+        for ci in cand:
+            sel = pts[ci]; p = P[ci]
+            if axis is None:
+                lo_i = np.maximum(sel - 25, 0)
+                win = (slice(lo_i[0], sel[0] + 26), slice(lo_i[1], sel[1] + 26), slice(lo_i[2], sel[2] + 26))
+                nb, na_ = np.argwhere(b[win]) + lo_i, np.argwhere(a[win]) + lo_i
+                if len(nb) == 0 or len(na_) == 0: continue
+                n = (lo + nb * H).mean(0) - (lo + na_ * H).mean(0)
+            else:
+                n = np.asarray(axis, float)
+            if np.linalg.norm(n) < 1e-6: continue
+            n = n / np.linalg.norm(n)
+            if not ring_ok(p, n, rc + PEG_CLEAR + WALL, 0.15, Lf + PEG_DEPTH_CLEAR, kf): continue
+            # root inside the male part: as long as it fits, at least 0.3 mm
+            La = 0.0
+            for tt in np.arange(0.3, anchor + 1e-6, 0.3):
+                if ring_ok(p, n, rc + 0.1, -tt, -0.05, km, nt=4): La = tt
+                else: break
+            if La < 0.3: continue
+            pin = key(p, n, 2 * r, -La, Lf, sides, taper=0.8)
+            hole = key(p, n, 2 * r + 2 * PEG_CLEAR, -La, Lf + PEG_DEPTH_CLEAR, sides, taper=0.8)  # same taper -> even gap
+            parts[male] = parts[male] + (pin ^ SOLID)
+            parts[female] = parts[female] - hole
+            kind = 'square' if sides == 4 else f'{sides}-sided'
+            return f'{male}->{female}: {kind} key {2*r:.2f} mm, depth {Lf:.1f} mm, root {La:.1f} mm at {np.round(p,1).tolist()}'
+    return f'{male}->{female}: no room for a key (glue joint, parts locate by shape)'
 
 JOINTS = [   # (male, female, width mm, depth mm[, sides])
     ('croc_R', 'base', 2.2, 2.0), ('croc_L', 'base', 2.2, 2.0),
     ('pants', 'croc_R', 2.6, 2.2), ('pants', 'croc_L', 2.6, 2.2),
     ('pants', 'shirt', 7.0, 5.0, 6),          # big faceted plug, like the torso in the example
     ('neck', 'shirt', 3.0, 2.5, 6), ('neck', 'head', 3.0, 3.0, 6),
-    ('tshirt', 'shirt', 1.2, 1.2),
-    ('arm_R', 'shirt', 1.6, 2.5), ('arm_L', 'shirt', 1.6, 2.5),
-    ('glove_R', 'arm_R', 1.4, 2.0), ('glove_L', 'arm_L', 1.4, 2.0),
+    ('tshirt', 'shirt', 1.0, 1.0),
+    ('arm_R', 'shirt', 1.4, 2.0), ('arm_L', 'shirt', 1.4, 2.0),
+    ('glove_R', 'arm_R', 1.2, 1.5), ('glove_L', 'arm_L', 1.2, 1.5),
+    ('glove_R', 'shirt', 1.4, 1.5), ('glove_L', 'shirt', 1.4, 1.5),   # hands rest on the hips
     ('ear_R', 'head', 1.4, 1.5), ('ear_L', 'head', 1.4, 1.5),
     ('hair', 'head', 2.0, 2.0), ('cap', 'hair', 1.6, 1.0), ('cap', 'head', 2.0, 2.0),
     ('mask', 'head', 1.2, 1.2),

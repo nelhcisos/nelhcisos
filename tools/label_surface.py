@@ -15,10 +15,14 @@ side = lambda R, Lf: np.where(x < 0, ID[R], ID[Lf])
 L[z < Z_BASE] = ID['base']
 m = (z >= Z_BASE) & (z < Z_CROC); L[m] = side('croc_R', 'croc_L')[m]
 m = (z >= Z_CROC) & (z < Z_HEM); L[m] = ID['pants']
-m = (z >= 28) & (z < Z_GLOVE_TOP) & (np.abs(x) > 10.3); L[m] = side('glove_R', 'glove_L')[m]
-body = (z >= Z_HEM) & (z < Z_HEAD) & ~((z < Z_GLOVE_TOP) & (np.abs(x) > 10.3))
+# hands hang pressed to the hips: glove / forearm boxes measured from slices (figure centred on body)
+glove = (z >= 31.5) & (z < Z_GLOVE_TOP) & (np.abs(x) >= 8.0) & (y > -4.8) & (y < 1.0)
+arm = (z >= Z_GLOVE_TOP) & (z < 43.6) & (np.abs(x) >= 7.2) & (y > -3.5) & (y < 0.9)
+body = (z >= Z_HEM) & (z < Z_HEAD)
 L[body] = ID['shirt']
-m = body & skin & (z < 48) & (np.abs(x) > 8); L[m] = side('arm_R', 'arm_L')[m]
+L[glove] = side('glove_R', 'glove_L')[glove]
+L[arm] = side('arm_R', 'arm_L')[arm]
+body = body & ~glove & ~arm
 m = body & (white | skin) & (z > 46) & (z < 54.3) & (np.abs(x) < 5.5) & (y < 0); L[m] = ID['tshirt']
 m = body & skin & (z >= 54.3) & (np.abs(x) < 7); L[m] = ID['neck']
 m = body & skin & (z > 50) & (y >= 0) & (np.abs(x) < 7); L[m] = ID['neck']
