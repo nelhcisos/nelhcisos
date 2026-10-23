@@ -66,7 +66,12 @@ def seat(part, receivers):
     for r in receivers: R |= O[r]
     blocked = O[part] & sweep_down(R)          # part material that has receiver material above it
     # the hollow of the part, filled down to the receiver so the part rests on it
-    hollow = sweep_down(O[part]) & sweep_up(R) & ~O[part] & ~R
+    # hollow = inside the part's closed ring in each horizontal slice (open sides are not filled)
+    ring_fill = np.zeros(shape, bool)
+    for k in range(shape[2]):
+        sl = O[part][:, :, k]
+        if sl.any(): ring_fill[:, :, k] = ndi.binary_fill_holes(sl)
+    hollow = ring_fill & sweep_down(O[part]) & ~O[part] & ~R
     filled = O[part] | hollow
     keepout = ndi.binary_dilation(sweep_down(R), ball, iterations=clr)
     new = filled & ~keepout

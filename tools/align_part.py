@@ -18,6 +18,8 @@ ap.add_argument('--labels', dest='labs', default='')
 ap.add_argument('--zmin', type=float, default=-1e9); ap.add_argument('--zmax', type=float, default=1e9)
 ap.add_argument('--xsign', type=float, default=0); ap.add_argument('--mirror', action='store_true')
 ap.add_argument('--trim', type=float, default=0.8)
+ap.add_argument('--yaw0', type=float, default=0.0, help='base turn around Z applied before the small-rotation search')
+ap.add_argument('--upright', action='store_true', help='part is already roughly upright and facing -Y: only small rotations')
 a = ap.parse_args()
 
 s = trimesh.load(a.part)
@@ -59,8 +61,12 @@ def icp(sc, R, t, iters=60):
 # start guesses: target size vs part size, many orientations
 ext_t = np.sqrt(np.linalg.eigvalsh(np.cov(T.T))).max()
 ext_s = np.sqrt(np.linalg.eigvalsh(np.cov(src_pts.T))).max()
-starts = [Rot.from_euler('zyx', [z, y, x], degrees=True).as_matrix()
-          for z in range(0, 360, 45) for y in (0, 90, 180, 270) for x in (0, 90)]
+if a.upright:
+    starts = [Rot.from_euler('zyx', [a.yaw0 + z, y, x], degrees=True).as_matrix()
+              for z in (-30, -15, 0, 15, 30) for y in (-10, 0, 10) for x in (-20, 0, 20)]
+else:
+    starts = [Rot.from_euler('zyx', [z, y, x], degrees=True).as_matrix()
+              for z in range(0, 360, 45) for y in (0, 90, 180, 270) for x in (0, 90)]
 best = None
 for R0 in starts:
     for sf in (0.9, 1.15):
