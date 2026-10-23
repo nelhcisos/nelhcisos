@@ -32,10 +32,12 @@ def grown(M, d):
             im = Image.new('1', (shape[0], shape[1]), 0)
             ImageDraw.Draw(im).polygon([((q[0] - lo[0]) / H, (q[1] - lo[1]) / H) for q in p], fill=1); acc ^= np.asarray(im, bool)
         occ[:, :, k] = acc.T
-    dist = ndi.distance_transform_edt(~occ) * H
-    f = np.pad((d - dist).astype(np.float32), 2, constant_values=-1)
-    v, fc, _, _ = measure.marching_cubes(f, 0.0)
-    return man(trimesh.Trimesh((v - 2) * H + lo, fc[:, ::-1], process=True))
+    grow = (ndi.distance_transform_edt(~occ) * H) <= d
+    f = ndi.gaussian_filter(np.pad(grow, 3).astype(np.float32), 0.6)
+    v, fc, _, _ = measure.marching_cubes(f, 0.5)
+    M = man(trimesh.Trimesh((v - 3) * H + lo, fc[:, ::-1], process=True))
+    assert M.status() == mf.Error.NoError, M.status()
+    return M
 
 def key(p, n, size, z0, z1, sides=4, taper=0.8):
     n = np.asarray(n, float); n /= np.linalg.norm(n)
@@ -87,6 +89,14 @@ for e in ('ear_R', 'ear_L'):
     # contact point: ear point nearest to the head along n
     pts = em.vertices; p = pts[np.argmax(pts @ n)]
     add_key(e, 'head', p - n * 0.1, n, 1.4, 1.5, 0.6)
+
+# final pass: in every touching pair one part yields to the other with the clearance
+YIELD = [('croc_L', ['croc_R']), ('sock_R', ['croc_R']), ('sock_L', ['croc_L']),
+         ('head', ['tshirt', 'shirt']), ('mask', ['shirt', 'neck', 'tshirt']), ('pants', ['glove_R', 'glove_L'])]
+for a, bs in YIELD:
+    for b in bs:
+        if (P[a] ^ P[b]).volume() > 0.01:
+            P[a] = big(P[a] - grown(P[b], CLEAR)); log.append(f'{a} yields to {b}')
 
 rep = {}
 for k, M in P.items():
