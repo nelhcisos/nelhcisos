@@ -16,6 +16,7 @@ PW, PD = (float(sys.argv[4]), float(sys.argv[5])) if len(sys.argv) > 5 else (218
 TILT = float(sys.argv[6]) if len(sys.argv) > 6 else 25.0
 LIFT = float(sys.argv[7]) if len(sys.argv) > 7 else 5.0
 GAP = 4.0
+SIDEWAYS = {'cap'}
 os.makedirs(os.path.join(out, 'oriented'), exist_ok=True)
 
 fig = np.load(figf); tree = cKDTree(fig['v'])
@@ -39,8 +40,13 @@ for f in sorted(os.listdir(pdir)):
         w = m.area_faces * joint
         hidden = (m.face_normals * w[:, None]).sum(0)
         if np.linalg.norm(hidden) < 1e-6: hidden = np.array([0, 0, -1.0])
-        R = rot_a_to_b(hidden, np.array([0, 0, -1.0]))
-        R = Rot.from_euler('x', TILT, degrees=True).as_matrix() @ R
+        if name in SIDEWAYS:
+            # cup-shaped part: open side faces sideways so it cannot act as a suction cup on the vat film
+            R = rot_a_to_b(hidden, np.array([-1.0, 0, 0]))
+            R = Rot.from_euler('y', -20, degrees=True).as_matrix() @ R
+        else:
+            R = rot_a_to_b(hidden, np.array([0, 0, -1.0]))
+            R = Rot.from_euler('x', TILT, degrees=True).as_matrix() @ R
     T = np.eye(4); T[:3, :3] = R
     m.apply_transform(T)
     # turn around Z to the smallest footprint
