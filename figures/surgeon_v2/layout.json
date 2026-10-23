@@ -5,7 +5,7 @@
  ],
  "tilt_deg": 25.0,
  "lift_mm": 5.0,
- "max_height_mm": 36.5,
+ "max_height_mm": 45.3,
  "parts": {
   "base": {
    "footprint_mm": [
@@ -21,32 +21,32 @@
   },
   "cap": {
    "footprint_mm": [
-    35.7,
-    37.7
+    35.1,
+    31.6
    ],
-   "height_mm": 36.5,
+   "height_mm": 45.3,
    "hidden_side_was": [
-    -0.19,
-    -0.73,
-    -0.66
+    -0.37,
+    -0.41,
+    -0.84
    ]
   },
   "head": {
    "footprint_mm": [
-    28.9,
-    28.4
+    28.1,
+    29.4
    ],
-   "height_mm": 28.2,
+   "height_mm": 28.0,
    "hidden_side_was": [
-    0.04,
-    0.62,
-    0.79
+    0.03,
+    0.63,
+    0.78
    ]
   },
   "shirt": {
    "footprint_mm": [
-    21.6,
-    21.3
+    21.3,
+    21.5
    ],
    "height_mm": 29.5,
    "hidden_side_was": [
@@ -58,12 +58,12 @@
   "pants": {
    "footprint_mm": [
     19.3,
-    21.7
+    21.6
    ],
-   "height_mm": 31.2,
+   "height_mm": 31.4,
    "hidden_side_was": [
-    -0.03,
-    -0.12,
+    -0.04,
+    -0.11,
     -0.99
    ]
   },
