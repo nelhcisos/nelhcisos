@@ -19,6 +19,7 @@ ap = argparse.ArgumentParser()
 ap.add_argument('receiver'); ap.add_argument('part'); ap.add_argument('out')
 ap.add_argument('--dir', default='+z'); ap.add_argument('--voxel', type=float, default=0.06)
 ap.add_argument('--clear', type=float, default=0.10); ap.add_argument('--ring', action='store_true')
+ap.add_argument('--part-loses', action='store_true', help='receiver stays untouched; the part is cut wherever it would collide')
 ap.add_argument('--wins-halfwidth', type=float, default=0, help='part wins over the receiver only where |x| < this (0 = everywhere)')
 a = ap.parse_args()
 H = a.voxel; os.makedirs(a.out, exist_ok=True)
@@ -66,8 +67,11 @@ wins = P | sweep(P, SG)
 if a.wins_halfwidth > 0:
     xs = lo[0] + np.arange(shape[0]) * H
     wins &= (np.abs(xs) < a.wins_halfwidth)[:, None, None]
-recv = recv - mesh_of(wins, 0.5)
-recv = sorted(recv.decompose(), key=lambda q: -q.volume())[0]
+if not a.part_loses:
+    recv = recv - mesh_of(wins, 0.5)
+_pcs = [q for q in recv.decompose() if q.volume() > 5.0]
+recv = _pcs[0]
+for _q in _pcs[1:]: recv = recv + _q
 R = vox(recv)
 behind = sweep(P, -SG)                      # space the part covers, looking against the take-off direction
 if a.ring:
