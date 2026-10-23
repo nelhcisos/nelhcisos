@@ -13,7 +13,7 @@ sc = bpy.context.scene
 # explode directions: away from the figure axis + up for head parts
 DIR = {'base': (0, 0, -1.2), 'croc_R': (-0.6, 0, -0.5), 'croc_L': (0.6, 0, -0.5), 'pants': (0, 0, -0.2), 'shirt': (0, 0, 0.3),
        'tshirt': (0, -1.2, 0.6), 'neck': (0, 0, 0.9), 'arm_R': (-1.4, 0, 0.3), 'arm_L': (1.4, 0, 0.3), 'glove_R': (-1.8, 0, -0.2),
-       'glove_L': (1.8, 0, -0.2), 'head': (0, 0, 1.4), 'ear_R': (-1.6, 0, 1.4), 'ear_L': (1.6, 0, 1.4), 'hair': (0, 0.3, 2.1),
+       'glove_L': (1.8, 0, -0.2), 'head': (0, 0, 1.5), 'ear_R': (-1.6, 0, 1.4), 'ear_L': (1.6, 0, 1.4), 'hair': (0, 0.3, 2.1),
        'cap': (0, 0.4, 2.9), 'mask': (0, -1.5, 1.2), 'sock_R': (-0.8, -0.6, 0.3), 'sock_L': (0.8, -0.6, 0.3), 'head_hair': (0, 0, 1.4)}
 for f in sorted(os.listdir(pdir)):
     if not f.endswith('.stl'): continue
